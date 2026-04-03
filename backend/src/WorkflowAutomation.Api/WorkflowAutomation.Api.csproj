@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>WorkflowAutomation.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="MediatR" Version="12.4.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\WorkflowAutomation.Application\WorkflowAutomation.Application.csproj" />
+    <ProjectReference Include="..\WorkflowAutomation.Infrastructure\WorkflowAutomation.Infrastructure.csproj" />
+    <ProjectReference Include="..\WorkflowAutomation.Domain\WorkflowAutomation.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

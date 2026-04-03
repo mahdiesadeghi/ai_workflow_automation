@@ -1,0 +1,49 @@
+.workflow-step {
+  position: relative;
+  padding-left: 40px;
+  padding-bottom: 24px;
+  border-left: 2px solid #dee2e6;
+  margin-left: 12px;
+}
+
+.workflow-step:last-child {
+  border-left-color: transparent;
+  padding-bottom: 0;
+}
+
+.workflow-step .step-icon {
+  position: absolute;
+  left: -13px;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.step-icon.pending {
+  background-color: #6c757d;
+}
+
+.step-icon.running {
+  background-color: #0d6efd;
+  animation: pulse 1.5s infinite;
+}
+
+.step-icon.completed {
+  background-color: #198754;
+}
+
+.step-icon.failed {
+  background-color: #dc3545;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

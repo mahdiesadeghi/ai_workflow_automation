@@ -1,0 +1,11 @@
+.summary-card {
+  transition: transform 0.15s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+}
+
+.table td {
+  vertical-align: middle;
+}
