@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using WorkflowAutomation.Application.DTOs;
 using WorkflowAutomation.Application.Interfaces;
@@ -16,16 +17,16 @@ namespace WorkflowAutomation.Application.Commands;
 public sealed class StartWorkflowCommandHandler : IRequestHandler<StartWorkflowCommand, WorkflowResponse>
 {
     private readonly IWorkflowRepository _workflowRepository;
-    private readonly IWorkflowOrchestrator _orchestrator;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<StartWorkflowCommandHandler> _logger;
 
     public StartWorkflowCommandHandler(
         IWorkflowRepository workflowRepository,
-        IWorkflowOrchestrator orchestrator,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<StartWorkflowCommandHandler> logger)
     {
         _workflowRepository = workflowRepository;
-        _orchestrator = orchestrator;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -45,16 +46,31 @@ public sealed class StartWorkflowCommandHandler : IRequestHandler<StartWorkflowC
         _logger.LogInformation("Workflow {WorkflowId} created for customer {Customer}",
             workflow.Id, request.CustomerName);
 
-        // Fire and forget the orchestration (it will update the workflow as it progresses)
+        var workflowId = workflow.Id;
+
+        // Fire and forget the orchestration in a new DI scope so that
+        // scoped services (DbContext, repositories) stay alive for the
+        // entire duration of the background work.
         _ = Task.Run(async () =>
         {
+            await using var scope = _serviceScopeFactory.CreateAsyncScope();
+            var orchestrator = scope.ServiceProvider.GetRequiredService<IWorkflowOrchestrator>();
+            var repository = scope.ServiceProvider.GetRequiredService<IWorkflowRepository>();
+
             try
             {
-                await _orchestrator.ExecuteWorkflowAsync(workflow);
+                var freshWorkflow = await repository.GetByIdAsync(workflowId);
+                if (freshWorkflow is null)
+                {
+                    _logger.LogError("Workflow {WorkflowId} not found when starting orchestration", workflowId);
+                    return;
+                }
+
+                await orchestrator.ExecuteWorkflowAsync(freshWorkflow);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Workflow {WorkflowId} orchestration failed", workflow.Id);
+                _logger.LogError(ex, "Workflow {WorkflowId} orchestration failed", workflowId);
             }
         }, CancellationToken.None);
 
