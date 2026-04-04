@@ -29,11 +29,13 @@ public class AiAnalysisService : IAiAnalysisService
     public async Task<WorkflowResult> AnalyzeContractAsync(ContractInput input, List<OfferInfo> offers)
     {
         var openAiKey = _configuration["OpenAI:ApiKey"];
+        _logger.LogDebug("OpenAI:ApiKey from configuration: {KeyPresent}", string.IsNullOrWhiteSpace(openAiKey) ? "empty/missing" : "present");
 
-        // Fall back to OPENAI_API_KEY environment variable if config value is missing
+        // Fall back to OPENAI_API_KEY environment variable if config value is missing or is the placeholder
         if (string.IsNullOrWhiteSpace(openAiKey) || openAiKey == "your-openai-api-key-here")
         {
             openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            _logger.LogDebug("Falling back to OPENAI_API_KEY env var: {KeyPresent}", string.IsNullOrWhiteSpace(openAiKey) ? "empty/missing" : "present");
         }
 
         if (!string.IsNullOrWhiteSpace(openAiKey) && openAiKey != "your-openai-api-key-here")

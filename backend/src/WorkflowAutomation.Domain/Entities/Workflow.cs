@@ -34,10 +34,12 @@ public class Workflow
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;
 
-        _steps.Add(new WorkflowStep(Id, "Scrape Provider Offers", 1));
-        _steps.Add(new WorkflowStep(Id, "AI Contract Analysis", 2));
-        _steps.Add(new WorkflowStep(Id, "Human Approval", 3));
-        _steps.Add(new WorkflowStep(Id, "Finalize Recommendation", 4));
+        _steps.Add(new WorkflowStep(Id, "input-validation", 1));
+        _steps.Add(new WorkflowStep(Id, "data-normalization", 2));
+        _steps.Add(new WorkflowStep(Id, "provider-scraping", 3));
+        _steps.Add(new WorkflowStep(Id, "ai-analysis", 4));
+        _steps.Add(new WorkflowStep(Id, "decision", 5));
+        _steps.Add(new WorkflowStep(Id, "human-approval", 6));
     }
 
     /// <summary>

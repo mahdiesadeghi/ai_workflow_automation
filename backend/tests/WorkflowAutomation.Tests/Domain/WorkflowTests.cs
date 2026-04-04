@@ -41,15 +41,17 @@ public class WorkflowTests
     }
 
     [Fact]
-    public void Constructor_ShouldCreateFourDefaultSteps()
+    public void Constructor_ShouldCreateDefaultSteps()
     {
         var workflow = new Workflow(CreateSampleInput());
 
-        workflow.Steps.Should().HaveCount(4);
-        workflow.Steps[0].Name.Should().Be("Scrape Provider Offers");
-        workflow.Steps[1].Name.Should().Be("AI Contract Analysis");
-        workflow.Steps[2].Name.Should().Be("Human Approval");
-        workflow.Steps[3].Name.Should().Be("Finalize Recommendation");
+        workflow.Steps.Should().HaveCount(6);
+        workflow.Steps[0].Name.Should().Be("input-validation");
+        workflow.Steps[1].Name.Should().Be("data-normalization");
+        workflow.Steps[2].Name.Should().Be("provider-scraping");
+        workflow.Steps[3].Name.Should().Be("ai-analysis");
+        workflow.Steps[4].Name.Should().Be("decision");
+        workflow.Steps[5].Name.Should().Be("human-approval");
     }
 
     [Fact]

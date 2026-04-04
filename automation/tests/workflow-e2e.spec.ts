@@ -63,10 +63,12 @@ test.describe('Workflow Lifecycle', () => {
     await expect(stepsContainer).toBeVisible({ timeout: 15_000 });
 
     // Verify the expected step names are present
-    await expect(page.getByText(/Scrape Provider Offers/i)).toBeVisible();
-    await expect(page.getByText(/AI Contract Analysis/i)).toBeVisible();
-    await expect(page.getByText(/Human Approval/i)).toBeVisible();
-    await expect(page.getByText(/Finalize Recommendation/i)).toBeVisible();
+    await expect(page.getByText(/input-validation/i)).toBeVisible();
+    await expect(page.getByText(/data-normalization/i)).toBeVisible();
+    await expect(page.getByText(/provider-scraping/i)).toBeVisible();
+    await expect(page.getByText(/ai-analysis/i)).toBeVisible();
+    await expect(page.getByText(/decision/i)).toBeVisible();
+    await expect(page.getByText(/human-approval/i)).toBeVisible();
 
     // ---------------------------------------------------------------
     // Step 7: Wait for AwaitingApproval status and check for approval buttons
