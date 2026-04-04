@@ -9,23 +9,35 @@ namespace WorkflowAutomation.Infrastructure.Services;
 
 /// <summary>
 /// Orchestrates workflow execution by delegating to a self-hosted Windmill instance.
-/// Triggers a Windmill flow for each pipeline phase and polls for completion.
+/// Each step attempts remote execution on Windmill first; when Windmill is unreachable
+/// or the script is missing, falls back to real local execution (same logic as the
+/// .NET WorkflowOrchestrator).
 /// </summary>
 public class WindmillOrchestrator : IWorkflowOrchestrator
 {
     private readonly WindmillClient _windmillClient;
+    private readonly IProviderScraperService _scraperService;
+    private readonly IAiAnalysisService _aiAnalysisService;
+    private readonly IOfferRepository _offerRepository;
     private readonly IWorkflowRepository _workflowRepository;
     private readonly ILogger<WindmillOrchestrator> _logger;
 
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan PollTimeout = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan StepDelay = TimeSpan.FromMilliseconds(500);
 
     public WindmillOrchestrator(
         WindmillClient windmillClient,
+        IProviderScraperService scraperService,
+        IAiAnalysisService aiAnalysisService,
+        IOfferRepository offerRepository,
         IWorkflowRepository workflowRepository,
         ILogger<WindmillOrchestrator> logger)
     {
         _windmillClient = windmillClient;
+        _scraperService = scraperService;
+        _aiAnalysisService = aiAnalysisService;
+        _offerRepository = offerRepository;
         _workflowRepository = workflowRepository;
         _logger = logger;
     }
@@ -45,26 +57,53 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
             workflow.Start();
             await _workflowRepository.UpdateAsync(workflow);
 
-            // Step 1: Trigger the analysis flow on Windmill
+            // Step 1: Input Validation
             await ExecuteWindmillStep(workflow, "input-validation", 1,
-                "workflows/input_validation", "Input validated via Windmill");
+                "workflows/input_validation", async () =>
+                {
+                    ValidateInput(workflow.InputData);
+                    return "Input validated successfully";
+                });
 
-            // Step 2: Data normalization
+            // Step 2: Data Normalization
             await ExecuteWindmillStep(workflow, "data-normalization", 2,
-                "workflows/data_normalization",
-                $"Price normalized: {workflow.InputData.CurrentPrice:C}/month, Plan type: {workflow.InputData.PlanType}");
+                "workflows/data_normalization", async () =>
+                {
+                    await Task.Delay(StepDelay);
+                    return $"Price normalized: {workflow.InputData.CurrentPrice:C}/month, " +
+                           $"Plan type: {workflow.InputData.PlanType}";
+                });
 
-            // Step 3: Provider scraping
+            // Step 3: Provider Scraping
+            List<OfferInfo> scrapedOffers = new();
             await ExecuteWindmillStep(workflow, "provider-scraping", 3,
-                "workflows/provider_scraping", "Provider offers scraped via Windmill");
+                "workflows/provider_scraping", async () =>
+                {
+                    scrapedOffers = await _scraperService.ScrapeProviderOffersAsync(workflow.InputData.Provider);
+                    return $"Scraped {scrapedOffers.Count} offers from providers";
+                });
 
-            // Step 4: AI analysis
+            // Step 4: AI Analysis
+            WorkflowResult? analysisResult = null;
             await ExecuteWindmillStep(workflow, "ai-analysis", 4,
-                "workflows/ai_analysis", "AI analysis completed via Windmill");
+                "workflows/ai_analysis", async () =>
+                {
+                    var allOffers = await _offerRepository.GetAllAsync();
+                    var combinedOffers = allOffers.Union(scrapedOffers).ToList();
+                    analysisResult = await _aiAnalysisService.AnalyzeContractAsync(workflow.InputData, combinedOffers);
+                    return $"AI recommends: {analysisResult.Recommendation} " +
+                           $"(savings: {analysisResult.EstimatedSavings:C}/month)";
+                });
 
             // Step 5: Decision
             await ExecuteWindmillStep(workflow, "decision", 5,
-                "workflows/decision", "Decision computed via Windmill");
+                "workflows/decision", async () =>
+                {
+                    await Task.Delay(StepDelay);
+                    return analysisResult!.Recommendation == "switch"
+                        ? $"Decision: Switch to {analysisResult.SuggestedOffer?.Provider ?? "alternative"}"
+                        : "Decision: Keep current contract";
+                });
 
             // Step 6: Human Approval - pause the workflow
             var approvalStep = workflow.Steps.FirstOrDefault(s => s.Name == "human-approval");
@@ -81,7 +120,7 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
 
             _logger.LogInformation("Windmill workflow {WorkflowId} paused at human-approval step", workflow.Id);
 
-            return new WorkflowResult(
+            return analysisResult ?? new WorkflowResult(
                 "pending",
                 "Awaiting human approval (Windmill mode)",
                 null,
@@ -101,9 +140,14 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
     {
         _logger.LogInformation("Resuming Windmill workflow {WorkflowId} after approval", workflow.Id);
 
-        // Step 7: Execution via Windmill
+        // Step 7: Execution
         await ExecuteWindmillStep(workflow, "execution", 7,
-            "workflows/execution", "Provider switch executed via Windmill. Confirmation sent.");
+            "workflows/execution", async () =>
+            {
+                await Task.Delay(StepDelay * 2);
+                return "Provider switch executed successfully. " +
+                       "Confirmation email sent. New contract activated.";
+            });
 
         var result = workflow.Result ?? new WorkflowResult(
             "completed",
@@ -124,7 +168,7 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
         string stepName,
         int order,
         string windmillScriptPath,
-        string fallbackOutput)
+        Func<Task<string>> localAction)
     {
         var step = workflow.Steps.FirstOrDefault(s => s.Name == stepName);
         if (step is null)
@@ -140,30 +184,40 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
 
         try
         {
-            var input = new Dictionary<string, object>
-            {
-                ["workflow_id"] = workflow.Id.ToString(),
-                ["step"] = stepName,
-                ["provider"] = workflow.InputData.Provider,
-                ["current_price"] = workflow.InputData.CurrentPrice,
-                ["duration"] = workflow.InputData.Duration,
-                ["plan_type"] = workflow.InputData.PlanType,
-                ["customer_name"] = workflow.InputData.CustomerName
-            };
-
-            // Try to trigger the Windmill script and poll for completion
             string output;
+
             if (await _windmillClient.IsHealthy())
             {
-                var jobId = await _windmillClient.TriggerScript(windmillScriptPath, input);
-                output = await PollJobCompletion(jobId, stepName);
+                try
+                {
+                    var input = new Dictionary<string, object>
+                    {
+                        ["workflow_id"] = workflow.Id.ToString(),
+                        ["step"] = stepName,
+                        ["provider"] = workflow.InputData.Provider,
+                        ["current_price"] = workflow.InputData.CurrentPrice,
+                        ["duration"] = workflow.InputData.Duration,
+                        ["plan_type"] = workflow.InputData.PlanType,
+                        ["customer_name"] = workflow.InputData.CustomerName
+                    };
+
+                    var jobId = await _windmillClient.TriggerScript(windmillScriptPath, input);
+                    output = await PollJobCompletion(jobId, stepName);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex,
+                        "Windmill script '{ScriptPath}' failed for step '{StepName}'. Falling back to local execution.",
+                        windmillScriptPath, stepName);
+                    output = await localAction();
+                }
             }
             else
             {
                 _logger.LogWarning(
-                    "Windmill is not reachable for step '{StepName}'. Using fallback output.",
+                    "Windmill is not reachable for step '{StepName}'. Falling back to local execution.",
                     stepName);
-                output = $"[Windmill unreachable] {fallbackOutput}";
+                output = await localAction();
             }
 
             step.Complete(output);
@@ -206,5 +260,19 @@ public class WindmillOrchestrator : IWorkflowOrchestrator
 
         throw new TimeoutException(
             $"Windmill job {jobId} for step '{stepName}' did not complete within {PollTimeout.TotalMinutes} minutes.");
+    }
+
+    private static void ValidateInput(ContractInput input)
+    {
+        if (string.IsNullOrWhiteSpace(input.Provider))
+            throw new ArgumentException("Provider is required.");
+        if (input.CurrentPrice <= 0)
+            throw new ArgumentException("Current price must be greater than zero.");
+        if (input.Duration < 0)
+            throw new ArgumentException("Duration cannot be negative.");
+        if (string.IsNullOrWhiteSpace(input.PlanType))
+            throw new ArgumentException("Plan type is required.");
+        if (string.IsNullOrWhiteSpace(input.CustomerName))
+            throw new ArgumentException("Customer name is required.");
     }
 }
