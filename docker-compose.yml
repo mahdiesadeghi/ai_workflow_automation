@@ -3,7 +3,10 @@ services:
   # PostgreSQL 16 - Primary data store (shared by app + Windmill)
   # ---------------------------------------------------------------------------
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    image: wfa-postgres:latest
     container_name: wfa-postgres
     restart: unless-stopped
     ports:
@@ -15,9 +18,6 @@ services:
       WINDMILL_DB: ${WINDMILL_DB:-windmill}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./database/init/000_create_windmill_db.sh:/docker-entrypoint-initdb.d/000_create_windmill_db.sh:ro
-      - ./database/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
-      - ./database/migrations/002_add_offer_indexes.sql:/docker-entrypoint-initdb.d/002_add_offer_indexes.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-workflow_automation}"]
       interval: 5s
