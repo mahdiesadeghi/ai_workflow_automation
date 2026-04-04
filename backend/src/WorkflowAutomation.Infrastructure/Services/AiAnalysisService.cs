@@ -30,6 +30,12 @@ public class AiAnalysisService : IAiAnalysisService
     {
         var openAiKey = _configuration["OpenAI:ApiKey"];
 
+        // Fall back to OPENAI_API_KEY environment variable if config value is missing
+        if (string.IsNullOrWhiteSpace(openAiKey) || openAiKey == "your-openai-api-key-here")
+        {
+            openAiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        }
+
         if (!string.IsNullOrWhiteSpace(openAiKey) && openAiKey != "your-openai-api-key-here")
         {
             return await AnalyzeWithSemanticKernelAsync(input, offers, openAiKey);
