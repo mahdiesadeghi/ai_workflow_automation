@@ -1,0 +1,101 @@
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0">Workflow Dashboard</h2>
+  <a routerLink="/workflows/new" class="btn btn-primary">
+    + New Workflow
+  </a>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card summary-card total p-3">
+      <div class="text-muted small">Total Workflows</div>
+      <div class="fs-3 fw-bold">{{ totalCount }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card summary-card running p-3">
+      <div class="text-muted small">Running / Pending</div>
+      <div class="fs-3 fw-bold text-warning">{{ runningCount }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card summary-card completed p-3">
+      <div class="text-muted small">Completed</div>
+      <div class="fs-3 fw-bold text-success">{{ completedCount }}</div>
+    </div>
+  </div>
+  <div class="col-md-3 col-sm-6 mb-3">
+    <div class="card summary-card failed p-3">
+      <div class="text-muted small">Failed / Rejected</div>
+      <div class="fs-3 fw-bold text-danger">{{ failedCount }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading -->
+@if (loading) {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2 text-muted">Loading workflows...</p>
+  </div>
+}
+
+<!-- Error -->
+@if (error) {
+  <div class="alert alert-danger" role="alert">
+    {{ error }}
+    <button class="btn btn-sm btn-outline-danger ms-2" (click)="loadWorkflows()">Retry</button>
+  </div>
+}
+
+<!-- Empty State -->
+@if (!loading && !error && workflows.length === 0) {
+  <div class="text-center py-5">
+    <h5 class="text-muted">No workflows yet</h5>
+    <p class="text-muted">Create your first workflow to get started.</p>
+    <a routerLink="/workflows/new" class="btn btn-primary">Create Workflow</a>
+  </div>
+}
+
+<!-- Workflows Table -->
+@if (!loading && workflows.length > 0) {
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Customer</th>
+            <th>Provider</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (workflow of workflows; track workflow.id) {
+            <tr>
+              <td class="font-monospace small">{{ shortenId(workflow.id) }}</td>
+              <td>{{ workflow.inputData.customerName || 'N/A' }}</td>
+              <td>{{ workflow.inputData.provider || 'N/A' }}</td>
+              <td>
+                <span [class]="getStatusBadgeClass(workflow.status)">
+                  {{ workflow.status }}
+                </span>
+              </td>
+              <td>{{ workflow.createdAt | date:'short' }}</td>
+              <td>
+                <a [routerLink]="['/workflows', workflow.id]" class="btn btn-sm btn-outline-primary">
+                  View
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+}

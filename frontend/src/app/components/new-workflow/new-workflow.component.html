@@ -1,0 +1,101 @@
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+    <div class="d-flex align-items-center mb-4">
+      <a routerLink="/dashboard" class="btn btn-outline-secondary btn-sm me-3">Back</a>
+      <h2 class="mb-0">Create New Workflow</h2>
+    </div>
+
+    @if (error) {
+      <div class="alert alert-danger" role="alert">{{ error }}</div>
+    }
+
+    <div class="card">
+      <div class="card-body p-4">
+        <form [formGroup]="workflowForm" (ngSubmit)="onSubmit()">
+          <!-- Customer Name -->
+          <div class="mb-3">
+            <label for="customerName" class="form-label">Customer Name</label>
+            <input type="text" class="form-control" id="customerName"
+                   formControlName="customerName"
+                   [class.is-invalid]="f['customerName'].touched && f['customerName'].invalid"
+                   placeholder="Enter customer name">
+            @if (f['customerName'].touched && f['customerName'].errors?.['required']) {
+              <div class="invalid-feedback">Customer name is required.</div>
+            }
+          </div>
+
+          <!-- Provider -->
+          <div class="mb-3">
+            <label for="provider" class="form-label">Provider</label>
+            <input type="text" class="form-control" id="provider"
+                   formControlName="provider"
+                   [class.is-invalid]="f['provider'].touched && f['provider'].invalid"
+                   placeholder="e.g., Engie, EDF, TotalEnergies">
+            @if (f['provider'].touched && f['provider'].errors?.['required']) {
+              <div class="invalid-feedback">Provider is required.</div>
+            }
+          </div>
+
+          <!-- Current Price -->
+          <div class="mb-3">
+            <label for="currentPrice" class="form-label">Current Price (EUR/month)</label>
+            <input type="number" class="form-control" id="currentPrice"
+                   formControlName="currentPrice"
+                   [class.is-invalid]="f['currentPrice'].touched && f['currentPrice'].invalid"
+                   placeholder="0.00" step="0.01" min="0">
+            @if (f['currentPrice'].touched && f['currentPrice'].errors?.['required']) {
+              <div class="invalid-feedback">Price is required.</div>
+            }
+            @if (f['currentPrice'].touched && f['currentPrice'].errors?.['min']) {
+              <div class="invalid-feedback">Price must be greater than 0.</div>
+            }
+          </div>
+
+          <!-- Duration -->
+          <div class="mb-3">
+            <label for="duration" class="form-label">Duration (months)</label>
+            <input type="number" class="form-control" id="duration"
+                   formControlName="duration"
+                   [class.is-invalid]="f['duration'].touched && f['duration'].invalid"
+                   placeholder="12" min="1">
+            @if (f['duration'].touched && f['duration'].errors?.['required']) {
+              <div class="invalid-feedback">Duration is required.</div>
+            }
+            @if (f['duration'].touched && f['duration'].errors?.['min']) {
+              <div class="invalid-feedback">Duration must be at least 1 month.</div>
+            }
+          </div>
+
+          <!-- Plan Type -->
+          <div class="mb-3">
+            <label for="planType" class="form-label">Plan Type</label>
+            <select class="form-select" id="planType"
+                    formControlName="planType"
+                    [class.is-invalid]="f['planType'].touched && f['planType'].invalid">
+              <option value="">Select a plan type</option>
+              <option value="electricity">Electricity</option>
+              <option value="gas">Gas</option>
+              <option value="electricity+gas">Electricity + Gas</option>
+            </select>
+            @if (f['planType'].touched && f['planType'].errors?.['required']) {
+              <div class="invalid-feedback">Plan type is required.</div>
+            }
+          </div>
+
+          <!-- Submit -->
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg"
+                    [disabled]="submitting">
+              @if (submitting) {
+                <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                Starting Workflow...
+              } @else {
+                Start Workflow
+              }
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

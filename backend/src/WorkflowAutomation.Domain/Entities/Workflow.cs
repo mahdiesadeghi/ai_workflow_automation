@@ -1,0 +1,131 @@
+using WorkflowAutomation.Domain.Enums;
+using WorkflowAutomation.Domain.ValueObjects;
+
+namespace WorkflowAutomation.Domain.Entities;
+
+/// <summary>
+/// Root aggregate representing an AI-driven contract analysis workflow.
+/// </summary>
+public class Workflow
+{
+    public Guid Id { get; private set; }
+
+    public WorkflowStatus Status { get; private set; }
+
+    public ContractInput InputData { get; private set; }
+
+    public WorkflowResult? Result { get; private set; }
+
+    public DateTime CreatedAt { get; private set; }
+
+    public DateTime UpdatedAt { get; private set; }
+
+    private readonly List<WorkflowStep> _steps = new();
+
+    public IReadOnlyList<WorkflowStep> Steps => _steps.AsReadOnly();
+
+    private Workflow() { InputData = null!; } // EF Core
+
+    public Workflow(ContractInput inputData)
+    {
+        Id = Guid.NewGuid();
+        InputData = inputData ?? throw new ArgumentNullException(nameof(inputData));
+        Status = WorkflowStatus.Pending;
+        CreatedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+
+        _steps.Add(new WorkflowStep(Id, "Scrape Provider Offers", 1));
+        _steps.Add(new WorkflowStep(Id, "AI Contract Analysis", 2));
+        _steps.Add(new WorkflowStep(Id, "Human Approval", 3));
+        _steps.Add(new WorkflowStep(Id, "Finalize Recommendation", 4));
+    }
+
+    /// <summary>
+    /// Transitions the workflow to the Running state.
+    /// </summary>
+    public void Start()
+    {
+        if (Status != WorkflowStatus.Pending)
+            throw new InvalidOperationException($"Cannot start a workflow in '{Status}' status.");
+
+        Status = WorkflowStatus.Running;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Completes the workflow with the given analysis result.
+    /// </summary>
+    public void Complete(WorkflowResult result)
+    {
+        if (Status != WorkflowStatus.Running && Status != WorkflowStatus.Approved)
+            throw new InvalidOperationException($"Cannot complete a workflow in '{Status}' status.");
+
+        Result = result ?? throw new ArgumentNullException(nameof(result));
+        Status = WorkflowStatus.Completed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Marks the workflow as failed with an error recorded in the result.
+    /// </summary>
+    public void Fail(string error)
+    {
+        if (string.IsNullOrWhiteSpace(error))
+            throw new ArgumentException("Error message is required.", nameof(error));
+
+        Result = new WorkflowResult(
+            recommendation: "error",
+            reasoning: error,
+            suggestedOffer: null,
+            estimatedSavings: 0m,
+            analyzedAt: DateTime.UtcNow);
+
+        Status = WorkflowStatus.Failed;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Transitions the workflow to await human approval.
+    /// </summary>
+    public void RequestApproval()
+    {
+        if (Status != WorkflowStatus.Running)
+            throw new InvalidOperationException($"Cannot request approval for a workflow in '{Status}' status.");
+
+        Status = WorkflowStatus.AwaitingApproval;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Approves the workflow, allowing it to continue execution.
+    /// </summary>
+    public void Approve()
+    {
+        if (Status != WorkflowStatus.AwaitingApproval)
+            throw new InvalidOperationException($"Cannot approve a workflow in '{Status}' status.");
+
+        Status = WorkflowStatus.Approved;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Rejects the workflow, halting further execution.
+    /// </summary>
+    public void Reject()
+    {
+        if (Status != WorkflowStatus.AwaitingApproval)
+            throw new InvalidOperationException($"Cannot reject a workflow in '{Status}' status.");
+
+        Status = WorkflowStatus.Rejected;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Adds a step to the workflow. Used internally or for dynamic step injection.
+    /// </summary>
+    public void AddStep(WorkflowStep step)
+    {
+        _steps.Add(step ?? throw new ArgumentNullException(nameof(step)));
+        UpdatedAt = DateTime.UtcNow;
+    }
+}

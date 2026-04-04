@@ -1,0 +1,225 @@
+<div class="mb-4">
+  <a routerLink="/dashboard" class="btn btn-outline-secondary btn-sm">Back to Dashboard</a>
+</div>
+
+<!-- Loading -->
+@if (loading) {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2 text-muted">Loading workflow details...</p>
+  </div>
+}
+
+<!-- Error -->
+@if (error) {
+  <div class="alert alert-danger">
+    {{ error }}
+    <button class="btn btn-sm btn-outline-danger ms-2" (click)="loadWorkflow()">Retry</button>
+  </div>
+}
+
+@if (workflow && !loading) {
+  <!-- Header -->
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h2 class="mb-1">Workflow Details</h2>
+      <p class="text-muted font-monospace small mb-0">ID: {{ workflow.id }}</p>
+    </div>
+    <span [class]="getStatusBadgeClass(workflow.status)" class="fs-6 px-3 py-2">
+      {{ workflow.status }}
+    </span>
+  </div>
+
+  <div class="row">
+    <!-- Left Column -->
+    <div class="col-lg-6 mb-4">
+      <!-- Contract Info -->
+      <div class="card mb-4">
+        <div class="card-header">
+          Contract Information
+        </div>
+        <div class="card-body">
+          <table class="table table-borderless mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted" style="width:40%">Customer</td>
+                <td class="fw-semibold">{{ workflow.inputData.customerName }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Provider</td>
+                <td class="fw-semibold">{{ workflow.inputData.provider }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Current Price</td>
+                <td class="fw-semibold">{{ workflow.inputData.currentPrice | currency:'EUR' }}/month</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Duration</td>
+                <td class="fw-semibold">{{ workflow.inputData.duration }} months</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Plan Type</td>
+                <td class="fw-semibold text-capitalize">{{ workflow.inputData.planType }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Result Card -->
+      @if (workflow.result) {
+        <div class="card mb-4">
+          <div class="card-header">
+            Analysis Result
+          </div>
+          <div class="card-body">
+            <div class="mb-3">
+              <label class="text-muted small d-block">Recommendation</label>
+              <span [class]="recommendationClass">
+                {{ workflow.result.recommendation }}
+              </span>
+            </div>
+
+            <div class="mb-3">
+              <label class="text-muted small d-block">Reasoning</label>
+              <p class="mb-0">{{ workflow.result.reasoning }}</p>
+            </div>
+
+            <div class="mb-3">
+              <label class="text-muted small d-block">Estimated Savings</label>
+              <span class="fs-5 fw-bold text-success">
+                {{ workflow.result.estimatedSavings | currency:'EUR' }}/month
+              </span>
+            </div>
+
+            @if (workflow.result.suggestedOffer) {
+              <hr>
+              <h6 class="text-muted mb-3">Suggested Offer</h6>
+              <table class="table table-borderless table-sm mb-0">
+                <tbody>
+                  <tr>
+                    <td class="text-muted">Provider</td>
+                    <td class="fw-semibold">{{ workflow.result.suggestedOffer.provider }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Plan Name</td>
+                    <td class="fw-semibold">{{ workflow.result.suggestedOffer.planName }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Price</td>
+                    <td class="fw-semibold">{{ workflow.result.suggestedOffer.price | currency:'EUR' }}/month</td>
+                  </tr>
+                  <tr>
+                    <td class="text-muted">Features</td>
+                    <td>
+                      @for (feature of workflow.result.suggestedOffer.features; track feature) {
+                        <span class="badge bg-light text-dark me-1 mb-1">{{ feature }}</span>
+                      }
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Approval Section -->
+      @if (isAwaitingApproval) {
+        <div class="card border-warning mb-4">
+          <div class="card-header bg-warning bg-opacity-10 text-dark">
+            Approval Required
+          </div>
+          <div class="card-body">
+            <p class="text-muted">This workflow is awaiting your approval. Please review the analysis result and approve or reject.</p>
+            <div class="mb-3">
+              <label for="approvalComment" class="form-label">Comment (optional)</label>
+              <textarea class="form-control" id="approvalComment" rows="2"
+                        [(ngModel)]="approvalComment"
+                        placeholder="Add a comment..."></textarea>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-success" (click)="approve(true)" [disabled]="approving">
+                @if (approving) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Approve
+              </button>
+              <button class="btn btn-danger" (click)="approve(false)" [disabled]="approving">
+                @if (approving) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Right Column - Steps Timeline -->
+    <div class="col-lg-6 mb-4">
+      <div class="card">
+        <div class="card-header">
+          Workflow Steps
+        </div>
+        <div class="card-body">
+          @if (sortedSteps.length === 0) {
+            <p class="text-muted mb-0">No steps recorded yet.</p>
+          } @else {
+            <div class="mt-2">
+              @for (step of sortedSteps; track step.id) {
+                <div class="workflow-step">
+                  <div [class]="getStepIconClass(step.status)">
+                    {{ getStepSymbol(step.status) }}
+                  </div>
+                  <div>
+                    <div class="fw-semibold">{{ step.name }}</div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                      <span [class]="getStatusBadgeClass(step.status)" class="small">
+                        {{ step.status }}
+                      </span>
+                      @if (step.startedAt) {
+                        <span class="text-muted small">
+                          {{ step.startedAt | date:'medium' }}
+                        </span>
+                      }
+                    </div>
+                    @if (step.output) {
+                      <div class="bg-light rounded p-2 small mt-1">
+                        {{ step.output }}
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Timestamps -->
+      <div class="card mt-4">
+        <div class="card-header">
+          Timeline
+        </div>
+        <div class="card-body">
+          <table class="table table-borderless table-sm mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted">Created</td>
+                <td>{{ workflow.createdAt | date:'medium' }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted">Last Updated</td>
+                <td>{{ workflow.updatedAt | date:'medium' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+}

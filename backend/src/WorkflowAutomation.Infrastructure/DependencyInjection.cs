@@ -1,0 +1,54 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using WorkflowAutomation.Application.Interfaces;
+using WorkflowAutomation.Domain.Interfaces;
+using WorkflowAutomation.Infrastructure.Data;
+using WorkflowAutomation.Infrastructure.Repositories;
+using WorkflowAutomation.Infrastructure.Services;
+
+namespace WorkflowAutomation.Infrastructure;
+
+public static class DependencyInjection
+{
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Database context
+        var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseNpgsql(connectionString, npgsqlOptions =>
+                {
+                    npgsqlOptions.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName);
+                    npgsqlOptions.EnableRetryOnFailure(3);
+                }));
+        }
+        else
+        {
+            // Fallback to in-memory database for development
+            services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseInMemoryDatabase("WorkflowAutomationDb"));
+        }
+
+        // Repositories
+        services.AddScoped<IWorkflowRepository, WorkflowRepository>();
+        services.AddScoped<IOfferRepository, OfferRepository>();
+
+        // Services
+        services.AddScoped<IWorkflowOrchestrator, WorkflowOrchestrator>();
+        services.AddScoped<IAiAnalysisService, AiAnalysisService>();
+        services.AddScoped<IProviderScraperService, ProviderScraperService>();
+
+        // Windmill client (singleton since it is stateless and reusable)
+        services.AddSingleton<WindmillClient>();
+
+        // HTTP client for external integrations
+        services.AddHttpClient();
+
+        return services;
+    }
+}

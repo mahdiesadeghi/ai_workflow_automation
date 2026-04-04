@@ -1,0 +1,147 @@
+body {
+  background-color: #f5f7fa;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.card {
+  border: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 10px;
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  background-color: transparent;
+  border-bottom: 1px solid #eee;
+  font-weight: 600;
+}
+
+.badge-status-pending {
+  background-color: #6c757d !important;
+}
+
+.badge-status-running {
+  background-color: #0d6efd !important;
+}
+
+.badge-status-awaitingapproval {
+  background-color: #ffc107 !important;
+  color: #212529 !important;
+}
+
+.badge-status-completed {
+  background-color: #198754 !important;
+}
+
+.badge-status-failed {
+  background-color: #dc3545 !important;
+}
+
+.badge-status-rejected {
+  background-color: #212529 !important;
+}
+
+.workflow-step {
+  position: relative;
+  padding-left: 40px;
+  padding-bottom: 20px;
+  border-left: 2px solid #dee2e6;
+  margin-left: 15px;
+}
+
+.workflow-step:last-child {
+  border-left: 2px solid transparent;
+}
+
+.workflow-step .step-icon {
+  position: absolute;
+  left: -13px;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #fff;
+}
+
+.step-icon.pending {
+  background-color: #6c757d;
+}
+
+.step-icon.running {
+  background-color: #0d6efd;
+}
+
+.step-icon.completed {
+  background-color: #198754;
+}
+
+.step-icon.failed {
+  background-color: #dc3545;
+}
+
+.recommendation-keep {
+  color: #0d6efd;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.recommendation-switch {
+  color: #198754;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.summary-card {
+  border-left: 4px solid;
+  border-radius: 10px;
+}
+
+.summary-card.total {
+  border-left-color: #0d6efd;
+}
+
+.summary-card.running {
+  border-left-color: #ffc107;
+}
+
+.summary-card.completed {
+  border-left-color: #198754;
+}
+
+.summary-card.failed {
+  border-left-color: #dc3545;
+}
+
+.spinner-border-sm {
+  width: 1rem;
+  height: 1rem;
+  border-width: 0.15em;
+}
+
+.table th {
+  font-weight: 600;
+  color: #495057;
+  border-top: none;
+}
+
+.btn {
+  border-radius: 6px;
+}
+
+.form-control:focus,
+.form-select:focus {
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+}
