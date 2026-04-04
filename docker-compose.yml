@@ -17,8 +17,9 @@ services:
       WINDMILL_DB: ${WINDMILL_DB:-windmill}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d/00-init:ro
-      - ./database/migrations:/docker-entrypoint-initdb.d/01-migrations:ro
+      - ./database/init/000_create_windmill_db.sh:/docker-entrypoint-initdb.d/000_create_windmill_db.sh:ro
+      - ./database/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+      - ./database/migrations/002_add_offer_indexes.sql:/docker-entrypoint-initdb.d/002_add_offer_indexes.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-workflow_automation}"]
       interval: 5s
@@ -37,6 +38,7 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${WINDMILL_DB:-windmill}?sslmode=disable
       MODE: server
+      RUST_LOG: info
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,49 +54,17 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${WINDMILL_DB:-windmill}?sslmode=disable
       MODE: worker
       WORKER_GROUP: default
+      RUST_LOG: info
     depends_on:
       - windmill_server
     volumes:
       - worker_dependency_cache:/tmp/windmill/cache
 
   # ---------------------------------------------------------------------------
-  # Backend - ASP.NET 8.0 Web API
+  # NOTE: Backend and Frontend are excluded from Docker Compose.
+  # - Run the backend from Visual Studio (ASP.NET 8.0)
+  # - Run the frontend from VS Code (Angular 17 via `ng serve`)
   # ---------------------------------------------------------------------------
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: wfa-backend
-    restart: unless-stopped
-    ports:
-      - "5000:5000"
-    environment:
-      ASPNETCORE_URLS: http://+:5000
-      ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-workflow_automation};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
-      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
-      Windmill__Url: ${WINDMILL_URL:-http://windmill_server:8000}
-      Windmill__Token: ${WINDMILL_TOKEN:-}
-      Windmill__Workspace: ${WINDMILL_WORKSPACE:-default}
-    depends_on:
-      postgres:
-        condition: service_healthy
-      windmill_server:
-        condition: service_started
-
-  # ---------------------------------------------------------------------------
-  # Frontend - Angular 17 served via Nginx
-  # ---------------------------------------------------------------------------
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: wfa-frontend
-    restart: unless-stopped
-    ports:
-      - "4200:80"
-    depends_on:
-      - backend
 
 volumes:
   pgdata:
