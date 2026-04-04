@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   # ---------------------------------------------------------------------------
-  # PostgreSQL 16 - Primary data store
+  # PostgreSQL 16 - Primary data store (shared by app + Windmill)
   # ---------------------------------------------------------------------------
   postgres:
     image: postgres:16-alpine
@@ -14,14 +14,48 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-workflow_automation}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      WINDMILL_DB: ${WINDMILL_DB:-windmill}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./database/migrations:/docker-entrypoint-initdb.d:ro
+      - ./database/init:/docker-entrypoint-initdb.d/00-init:ro
+      - ./database/migrations:/docker-entrypoint-initdb.d/01-migrations:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-workflow_automation}"]
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Windmill Server - Workflow engine UI & API (port 8000)
+  # ---------------------------------------------------------------------------
+  windmill_server:
+    image: ghcr.io/windmill-labs/windmill:main
+    container_name: wfa-windmill-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${WINDMILL_DB:-windmill}?sslmode=disable
+      MODE: server
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Windmill Worker - Executes scripts and flows
+  # ---------------------------------------------------------------------------
+  windmill_worker:
+    image: ghcr.io/windmill-labs/windmill:main
+    container_name: wfa-windmill-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${WINDMILL_DB:-windmill}?sslmode=disable
+      MODE: worker
+      WORKER_GROUP: default
+    depends_on:
+      - windmill_server
+    volumes:
+      - worker_dependency_cache:/tmp/windmill/cache
 
   # ---------------------------------------------------------------------------
   # Backend - ASP.NET 8.0 Web API
@@ -39,11 +73,14 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-workflow_automation};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
       OpenAI__ApiKey: ${OPENAI_API_KEY:-}
-      WINDMILL_URL: ${WINDMILL_URL:-}
-      WINDMILL_TOKEN: ${WINDMILL_TOKEN:-}
+      Windmill__Url: ${WINDMILL_URL:-http://windmill_server:8000}
+      Windmill__Token: ${WINDMILL_TOKEN:-}
+      Windmill__Workspace: ${WINDMILL_WORKSPACE:-default}
     depends_on:
       postgres:
         condition: service_healthy
+      windmill_server:
+        condition: service_started
 
   # ---------------------------------------------------------------------------
   # Frontend - Angular 17 served via Nginx
@@ -61,4 +98,6 @@ services:
 
 volumes:
   pgdata:
+    driver: local
+  worker_dependency_cache:
     driver: local
