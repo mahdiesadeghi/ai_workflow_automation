@@ -38,7 +38,7 @@ services:
       ASPNETCORE_URLS: http://+:5000
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-workflow_automation};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}"
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OpenAI__ApiKey: ${OPENAI_API_KEY:-}
       WINDMILL_URL: ${WINDMILL_URL:-}
       WINDMILL_TOKEN: ${WINDMILL_TOKEN:-}
     depends_on:
