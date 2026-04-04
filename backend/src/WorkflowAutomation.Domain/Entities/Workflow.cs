@@ -20,16 +20,22 @@ public class Workflow
 
     public DateTime UpdatedAt { get; private set; }
 
+    /// <summary>
+    /// The execution mode for this workflow: "dotnet" (in-process) or "windmill" (Windmill engine).
+    /// </summary>
+    public string ExecutionMode { get; private set; } = "dotnet";
+
     private readonly List<WorkflowStep> _steps = new();
 
     public IReadOnlyList<WorkflowStep> Steps => _steps.AsReadOnly();
 
     private Workflow() { InputData = null!; } // EF Core
 
-    public Workflow(ContractInput inputData)
+    public Workflow(ContractInput inputData, string executionMode = "dotnet")
     {
         Id = Guid.NewGuid();
         InputData = inputData ?? throw new ArgumentNullException(nameof(inputData));
+        ExecutionMode = executionMode is "windmill" or "dotnet" ? executionMode : "dotnet";
         Status = WorkflowStatus.Pending;
         CreatedAt = DateTime.UtcNow;
         UpdatedAt = DateTime.UtcNow;

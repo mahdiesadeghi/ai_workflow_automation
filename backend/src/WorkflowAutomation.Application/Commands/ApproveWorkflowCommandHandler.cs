@@ -41,6 +41,7 @@ public sealed class ApproveWorkflowCommandHandler : IRequestHandler<ApproveWorkf
             await _workflowRepository.UpdateAsync(workflow, cancellationToken);
 
             var workflowId = workflow.Id;
+            var executionMode = workflow.ExecutionMode is "windmill" or "dotnet" ? workflow.ExecutionMode : "dotnet";
 
             // Resume orchestration after approval in a new DI scope so that
             // scoped services (DbContext, repositories) stay alive for the
@@ -48,7 +49,7 @@ public sealed class ApproveWorkflowCommandHandler : IRequestHandler<ApproveWorkf
             _ = Task.Run(async () =>
             {
                 await using var scope = _serviceScopeFactory.CreateAsyncScope();
-                var orchestrator = scope.ServiceProvider.GetRequiredService<IWorkflowOrchestrator>();
+                var orchestrator = scope.ServiceProvider.GetRequiredKeyedService<IWorkflowOrchestrator>(executionMode);
                 var repository = scope.ServiceProvider.GetRequiredService<IWorkflowRepository>();
 
                 try

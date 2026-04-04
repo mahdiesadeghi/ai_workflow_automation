@@ -13,4 +13,5 @@ public sealed class StartWorkflowCommand : IRequest<WorkflowResponse>
     public int Duration { get; set; }
     public string PlanType { get; set; } = string.Empty;
     public string CustomerName { get; set; } = string.Empty;
+    public string ExecutionMode { get; set; } = "dotnet";
 }

@@ -26,7 +26,8 @@ export class NewWorkflowComponent {
       provider: ['', [Validators.required]],
       currentPrice: [null, [Validators.required, Validators.min(0.01)]],
       duration: [null, [Validators.required, Validators.min(1)]],
-      planType: ['', [Validators.required]]
+      planType: ['', [Validators.required]],
+      executionMode: ['dotnet', [Validators.required]]
     });
   }
 

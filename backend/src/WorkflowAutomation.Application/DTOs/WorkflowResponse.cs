@@ -13,6 +13,7 @@ public sealed class WorkflowResponse
     public ContractInput InputData { get; set; } = null!;
     public WorkflowResult? Result { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string ExecutionMode { get; set; } = "dotnet";
     public List<WorkflowStepResponse> Steps { get; set; } = new();
 }
 

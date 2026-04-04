@@ -27,6 +27,11 @@ public class WorkflowConfiguration : IEntityTypeConfiguration<Workflow>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(w => w.ExecutionMode)
+            .HasMaxLength(20)
+            .HasDefaultValue("dotnet")
+            .IsRequired();
+
         builder.Property(w => w.CreatedAt).IsRequired();
         builder.Property(w => w.UpdatedAt).IsRequired();
 
