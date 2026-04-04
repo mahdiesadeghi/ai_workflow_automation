@@ -3,6 +3,7 @@ using Moq;
 using WorkflowAutomation.Application.Interfaces;
 using WorkflowAutomation.Domain.Entities;
 using WorkflowAutomation.Domain.Enums;
+using WorkflowAutomation.Domain.Interfaces;
 using WorkflowAutomation.Domain.ValueObjects;
 using Xunit;
 
@@ -49,13 +50,13 @@ public class StartWorkflowCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         _orchestratorMock
-            .Setup(o => o.ExecuteAsync(It.IsAny<Workflow>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Setup(o => o.ExecuteWorkflowAsync(It.IsAny<Workflow>()))
+            .ReturnsAsync(new WorkflowResult("keep", "Mock analysis", null, 0m, DateTime.UtcNow));
 
         // Act - simulate what the handler does
         var workflow = new Workflow(input);
         await _workflowRepoMock.Object.AddAsync(workflow);
-        _ = _orchestratorMock.Object.ExecuteAsync(workflow);
+        _ = _orchestratorMock.Object.ExecuteWorkflowAsync(workflow);
 
         // Assert
         savedWorkflow.Should().NotBeNull();
@@ -83,19 +84,18 @@ public class StartWorkflowCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         _orchestratorMock
-            .Setup(o => o.ExecuteAsync(It.IsAny<Workflow>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Setup(o => o.ExecuteWorkflowAsync(It.IsAny<Workflow>()))
+            .ReturnsAsync(new WorkflowResult("keep", "Mock analysis", null, 0m, DateTime.UtcNow));
 
         // Act
         var workflow = new Workflow(input);
         await _workflowRepoMock.Object.AddAsync(workflow);
-        await _orchestratorMock.Object.ExecuteAsync(workflow);
+        await _orchestratorMock.Object.ExecuteWorkflowAsync(workflow);
 
         // Assert
         _orchestratorMock.Verify(
-            o => o.ExecuteAsync(
-                It.Is<Workflow>(w => w.InputData.Provider == "PowerCorp"),
-                It.IsAny<CancellationToken>()),
+            o => o.ExecuteWorkflowAsync(
+                It.Is<Workflow>(w => w.InputData.Provider == "PowerCorp")),
             Times.Once);
     }
 
@@ -122,18 +122,17 @@ public class StartWorkflowCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         _orchestratorMock
-            .Setup(o => o.ResumeAfterApprovalAsync(It.IsAny<Workflow>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+            .Setup(o => o.ExecuteWorkflowAsync(It.IsAny<Workflow>()))
+            .ReturnsAsync(new WorkflowResult("switch", "Better offer found", null, 15m, DateTime.UtcNow));
 
         // Act
         var fetched = await _workflowRepoMock.Object.GetByIdAsync(workflow.Id);
-        await _orchestratorMock.Object.ResumeAfterApprovalAsync(fetched!);
+        await _orchestratorMock.Object.ExecuteWorkflowAsync(fetched!);
 
         // Assert
         _orchestratorMock.Verify(
-            o => o.ResumeAfterApprovalAsync(
-                It.Is<Workflow>(w => w.Status == WorkflowStatus.Approved),
-                It.IsAny<CancellationToken>()),
+            o => o.ExecuteWorkflowAsync(
+                It.Is<Workflow>(w => w.Status == WorkflowStatus.Approved)),
             Times.Once);
     }
 
@@ -169,7 +168,7 @@ public class StartWorkflowCommandHandlerTests
             .Returns(Task.CompletedTask);
 
         _orchestratorMock
-            .Setup(o => o.ExecuteAsync(It.IsAny<Workflow>(), It.IsAny<CancellationToken>()))
+            .Setup(o => o.ExecuteWorkflowAsync(It.IsAny<Workflow>()))
             .ThrowsAsync(new TimeoutException("Orchestrator timed out"));
 
         var input = new ContractInput("TestEnergy", 95m, 12, "electricity", "John Doe");
@@ -177,7 +176,7 @@ public class StartWorkflowCommandHandlerTests
         await _workflowRepoMock.Object.AddAsync(workflow);
 
         // Act
-        var act = async () => await _orchestratorMock.Object.ExecuteAsync(workflow);
+        var act = async () => await _orchestratorMock.Object.ExecuteWorkflowAsync(workflow);
 
         // Assert
         await act.Should().ThrowAsync<TimeoutException>()
