@@ -43,11 +43,11 @@ public static class DependencyInjection
         services.AddScoped<IAiAnalysisService, AiAnalysisService>();
         services.AddScoped<IProviderScraperService, ProviderScraperService>();
 
-        // Windmill client (singleton since it is stateless and reusable)
-        services.AddSingleton<WindmillClient>();
-
         // HTTP client for external integrations
         services.AddHttpClient();
+
+        // Windmill client (scoped — uses IHttpClientFactory)
+        services.AddScoped<WindmillClient>();
 
         return services;
     }
