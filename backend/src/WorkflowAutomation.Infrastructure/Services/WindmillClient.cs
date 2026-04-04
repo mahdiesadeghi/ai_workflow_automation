@@ -39,6 +39,11 @@ public class WindmillClient
             _httpClient.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
         }
+        else
+        {
+            _logger.LogWarning(
+                "Windmill:Token is not configured. Authenticated API calls will fail with 401.");
+        }
     }
 
     /// <summary>
@@ -56,6 +61,14 @@ public class WindmillClient
             scriptPath, url);
 
         var response = await _httpClient.PostAsJsonAsync(url, input, JsonOptions);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException(
+                "Windmill API returned 401 Unauthorized. " +
+                "Verify that the Windmill:Token configuration is set to a valid API token.");
+        }
+
         response.EnsureSuccessStatusCode();
 
         var jobId = await response.Content.ReadAsStringAsync();
@@ -88,6 +101,14 @@ public class WindmillClient
         _logger.LogInformation("Windmill: Checking status of job {JobId}", jobId);
 
         var response = await _httpClient.GetAsync(url);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            throw new HttpRequestException(
+                "Windmill API returned 401 Unauthorized. " +
+                "Verify that the Windmill:Token configuration is set to a valid API token.");
+        }
+
         response.EnsureSuccessStatusCode();
 
         var json = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -135,14 +156,31 @@ public class WindmillClient
     }
 
     /// <summary>
-    /// Health check: verifies the Windmill instance is reachable.
+    /// Health check: verifies the Windmill instance is reachable and the token is valid.
+    /// Uses an authenticated endpoint to ensure credentials work before triggering scripts.
     /// </summary>
     public async Task<bool> IsHealthy()
     {
         try
         {
-            var response = await _httpClient.GetAsync($"{_windmillUrl}/api/version");
-            return response.IsSuccessStatusCode;
+            // First check basic connectivity
+            var versionResponse = await _httpClient.GetAsync($"{_windmillUrl}/api/version");
+            if (!versionResponse.IsSuccessStatusCode)
+                return false;
+
+            // Then verify authentication by calling an authenticated endpoint
+            var authResponse = await _httpClient.GetAsync(
+                $"{_windmillUrl}/api/w/{_workspace}/scripts/list?per_page=1");
+
+            if (authResponse.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                _logger.LogWarning(
+                    "Windmill is reachable but authentication failed (401). " +
+                    "Check the Windmill:Token configuration.");
+                return false;
+            }
+
+            return authResponse.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
