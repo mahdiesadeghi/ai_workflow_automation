@@ -31,9 +31,12 @@ export interface WorkflowStep {
   order: number;
 }
 
+export type ExecutionMode = 'dotnet' | 'windmill';
+
 export interface Workflow {
   id: string;
   status: string;
+  executionMode: ExecutionMode;
   inputData: ContractInput;
   result?: WorkflowResult;
   createdAt: string;
@@ -47,4 +50,5 @@ export interface StartWorkflowRequest {
   duration: number;
   planType: string;
   customerName: string;
+  executionMode: ExecutionMode;
 }

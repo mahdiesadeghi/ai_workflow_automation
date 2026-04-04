@@ -20,6 +20,7 @@ public static class WorkflowMapper
             InputData = workflow.InputData,
             Result = workflow.Result,
             CreatedAt = workflow.CreatedAt,
+            ExecutionMode = workflow.ExecutionMode,
             Steps = workflow.Steps
                 .OrderBy(s => s.Order)
                 .Select(ToStepResponse)

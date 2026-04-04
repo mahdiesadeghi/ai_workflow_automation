@@ -38,8 +38,12 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowRepository, WorkflowRepository>();
         services.AddScoped<IOfferRepository, OfferRepository>();
 
-        // Services
+        // Orchestrators — keyed by execution mode
+        services.AddKeyedScoped<IWorkflowOrchestrator, WorkflowOrchestrator>("dotnet");
+        services.AddKeyedScoped<IWorkflowOrchestrator, WindmillOrchestrator>("windmill");
+        // Default (non-keyed) registration for backward compatibility
         services.AddScoped<IWorkflowOrchestrator, WorkflowOrchestrator>();
+
         services.AddScoped<IAiAnalysisService, AiAnalysisService>();
         services.AddScoped<IProviderScraperService, ProviderScraperService>();
 

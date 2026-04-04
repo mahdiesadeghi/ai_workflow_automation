@@ -37,7 +37,8 @@ public class WorkflowsController : ControllerBase
             CurrentPrice = request.CurrentPrice,
             Duration = request.Duration,
             PlanType = request.PlanType,
-            CustomerName = request.CustomerName
+            CustomerName = request.CustomerName,
+            ExecutionMode = request.ExecutionMode
         };
 
         var result = await _mediator.Send(command);

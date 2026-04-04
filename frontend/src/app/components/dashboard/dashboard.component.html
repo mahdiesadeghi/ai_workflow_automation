@@ -70,6 +70,7 @@
             <th>ID</th>
             <th>Customer</th>
             <th>Provider</th>
+            <th>Engine</th>
             <th>Status</th>
             <th>Created</th>
             <th>Actions</th>
@@ -81,6 +82,11 @@
               <td class="font-monospace small">{{ shortenId(workflow.id) }}</td>
               <td>{{ workflow.inputData.customerName || 'N/A' }}</td>
               <td>{{ workflow.inputData.provider || 'N/A' }}</td>
+              <td>
+                <span [class]="workflow.executionMode === 'windmill' ? 'badge bg-info text-dark' : 'badge bg-secondary'">
+                  {{ workflow.executionMode === 'windmill' ? 'Windmill' : '.NET' }}
+                </span>
+              </td>
               <td>
                 <span [class]="getStatusBadgeClass(workflow.status)">
                   {{ workflow.status }}

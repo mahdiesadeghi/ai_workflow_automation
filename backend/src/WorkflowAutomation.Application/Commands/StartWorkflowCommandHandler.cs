@@ -39,7 +39,7 @@ public sealed class StartWorkflowCommandHandler : IRequestHandler<StartWorkflowC
             request.PlanType,
             request.CustomerName);
 
-        var workflow = new Workflow(input);
+        var workflow = new Workflow(input, request.ExecutionMode);
 
         await _workflowRepository.AddAsync(workflow, cancellationToken);
 
@@ -47,6 +47,7 @@ public sealed class StartWorkflowCommandHandler : IRequestHandler<StartWorkflowC
             workflow.Id, request.CustomerName);
 
         var workflowId = workflow.Id;
+        var executionMode = request.ExecutionMode is "windmill" or "dotnet" ? request.ExecutionMode : "dotnet";
 
         // Fire and forget the orchestration in a new DI scope so that
         // scoped services (DbContext, repositories) stay alive for the
@@ -54,7 +55,7 @@ public sealed class StartWorkflowCommandHandler : IRequestHandler<StartWorkflowC
         _ = Task.Run(async () =>
         {
             await using var scope = _serviceScopeFactory.CreateAsyncScope();
-            var orchestrator = scope.ServiceProvider.GetRequiredService<IWorkflowOrchestrator>();
+            var orchestrator = scope.ServiceProvider.GetRequiredKeyedService<IWorkflowOrchestrator>(executionMode);
             var repository = scope.ServiceProvider.GetRequiredService<IWorkflowRepository>();
 
             try
