@@ -121,7 +121,7 @@ async function scriptExists(scriptPath: string): Promise<boolean> {
 }
 
 async function createOrUpdateScript(script: ScriptDefinition): Promise<void> {
-  const scriptDir = path.dirname(new URL(import.meta.url).pathname);
+  const scriptDir = path.dirname(new URL(import.meta.url).pathname).replace(/^\/([A-Za-z]:)/, '$1');
   const filePath = path.join(scriptDir, script.localFile);
   const content = fs.readFileSync(filePath, "utf-8");
 
