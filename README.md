@@ -7,14 +7,21 @@ A simplified prototype of an AI-native internal platform that automates subscrip
 ```
 ┌─────────────────┐     ┌──────────────────────────┐     ┌───────────────┐
 │  Angular 17 UI  │────▶│  .NET 8 Web API          │────▶│  PostgreSQL   │
-│  (port 4200)    │     │  (port 5000)             │     │  (Neon DB)    │
-└─────────────────┘     │                          │     └───────────────┘
+│  (port 4200)    │     │  (port 5000)             │     │  (port 5432)  │
+└─────────────────┘     │                          │     └───────┬───────┘
+                        │  ┌────────────────────┐  │             │
+                        │  │ Workflow Orchestrator│  │     ┌──────▼────────┐
+                        │  │ (dual mode)         │  │     │  Windmill     │
+                        │  └────────┬───────────┘  │     │  (port 8000)  │
+                        │           │              │     └───────────────┘
+                        │     ┌─────┴──────┐       │
+                        │     │            │       │
+                        │  ┌──▼───┐  ┌─────▼────┐  │
+                        │  │.NET  │  │ Windmill  │  │
+                        │  │local │  │ remote    │  │
+                        │  └──────┘  └──────────┘  │
+                        │                          │
                         │  ┌────────────────────┐  │
-                        │  │ Workflow Orchestrator│  │
-                        │  │ (Windmill mock)     │  │
-                        │  └────────┬───────────┘  │
-                        │           │              │
-                        │  ┌────────▼───────────┐  │
                         │  │ AI Analysis Service │  │
                         │  │ (Semantic Kernel)   │  │
                         │  └────────────────────┘  │
@@ -28,15 +35,15 @@ A simplified prototype of an AI-native internal platform that automates subscrip
 
 ## Tech Stack
 
-| Layer      | Technology                                    |
-|------------|-----------------------------------------------|
-| Frontend   | Angular 17 (standalone components)            |
-| Backend    | C# / .NET 8 Web API (Clean Architecture)      |
-| AI         | Microsoft Semantic Kernel + OpenAI             |
-| Workflow   | Windmill.dev (mocked orchestrator)             |
-| Database   | PostgreSQL 16 / Neon DB                        |
-| Automation | Playwright (browser scraping simulation)       |
-| Logging    | Serilog (structured logging)                   |
+| Layer      | Technology                                       |
+|------------|--------------------------------------------------|
+| Frontend   | Angular 17 (standalone components)               |
+| Backend    | C# / .NET 8 Web API (Clean Architecture)         |
+| AI         | Microsoft Semantic Kernel + OpenAI               |
+| Workflow   | Windmill.dev (self-hosted) or .NET in-process    |
+| Database   | PostgreSQL 16                                    |
+| Automation | Playwright (browser scraping simulation)         |
+| Logging    | Serilog (structured logging)                     |
 
 ## Core Use Case
 
@@ -52,27 +59,35 @@ A simplified prototype of an AI-native internal platform that automates subscrip
 4. User approves or rejects the recommendation
 5. System executes the switch (simulated)
 
+## Execution Modes
+
+The platform supports two workflow execution modes, selectable per workflow from the UI:
+
+- **.NET (In-Process)** — Runs all workflow steps locally within the .NET backend. No external dependencies required.
+- **Windmill** — Delegates workflow steps to a self-hosted [Windmill](https://www.windmill.dev/) engine. Falls back gracefully to local .NET execution if Windmill is unreachable or a script is missing.
+
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
 - [Node.js 22+](https://nodejs.org/)
-- [Docker & Docker Compose](https://docs.docker.com/get-docker/) (optional)
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/)
 - PostgreSQL 16 (or use in-memory DB for dev)
 
 ## Quick Start
 
-### Option 1: Docker Compose
+### 1. Start infrastructure (PostgreSQL + Windmill)
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up -d
 ```
 
-- Frontend: http://localhost:4200
-- Backend API: http://localhost:5000
-- Swagger: http://localhost:5000/swagger
+This starts:
+- **PostgreSQL** on port 5432 (with both `workflow_automation` and `windmill` databases)
+- **Windmill server** on port 8000 (UI & API)
+- **Windmill worker** (executes workflow scripts)
 
-### Option 2: Manual Setup
+### 2. Run backend and frontend locally
 
 **Backend:**
 ```bash
@@ -88,9 +103,26 @@ npm install
 npm start
 ```
 
-**Database (optional):**
+### 3. Deploy Windmill scripts (optional, for Windmill execution mode)
+
 ```bash
-# Apply migrations to PostgreSQL
+# Generate an API token in Windmill UI: http://localhost:8000 → Settings → Tokens
+export WINDMILL_TOKEN=your_token
+npx tsx windmill/deploy-scripts.ts
+```
+
+### Services
+
+| Service          | URL                          |
+|------------------|------------------------------|
+| Frontend         | http://localhost:4200         |
+| Backend API      | http://localhost:5000         |
+| Swagger          | http://localhost:5000/swagger |
+| Windmill UI      | http://localhost:8000         |
+
+### Database (manual setup, alternative to Docker)
+
+```bash
 psql -h localhost -U postgres -d workflow_automation -f database/migrations/001_initial_schema.sql
 psql -h localhost -U postgres -d workflow_automation -f database/migrations/002_add_offer_indexes.sql
 ```
@@ -118,9 +150,12 @@ curl -X POST http://localhost:5000/api/workflows/start \
     "currentPrice": 110,
     "duration": 12,
     "planType": "electricity",
-    "customerName": "Jane Doe"
+    "customerName": "Jane Doe",
+    "executionMode": "dotnet"
   }'
 ```
+
+The `executionMode` field accepts `"dotnet"` (default) or `"windmill"`.
 
 ### Example: Approve a Workflow
 
@@ -139,7 +174,11 @@ curl -X POST http://localhost:5000/api/workflows/{id}/approve \
 │   ├── src/
 │   │   ├── WorkflowAutomation.Domain/        # Entities, value objects, interfaces
 │   │   ├── WorkflowAutomation.Application/    # Commands, queries, DTOs, validators
-│   │   ├── WorkflowAutomation.Infrastructure/ # EF Core, AI service, orchestrator
+│   │   ├── WorkflowAutomation.Infrastructure/ # EF Core, AI service, orchestrators
+│   │   │   └── Services/
+│   │   │       ├── WorkflowOrchestrator.cs    # .NET in-process execution
+│   │   │       ├── WindmillOrchestrator.cs    # Windmill remote execution
+│   │   │       └── WindmillClient.cs          # Windmill REST API client
 │   │   └── WorkflowAutomation.Api/            # Controllers, middleware, config
 │   └── tests/
 │       └── WorkflowAutomation.Tests/          # Unit tests
@@ -150,10 +189,22 @@ curl -X POST http://localhost:5000/api/workflows/{id}/approve \
 │   │   └── models/                            # TypeScript interfaces
 │   ├── angular.json
 │   └── Dockerfile
+├── windmill/
+│   ├── deploy-scripts.ts                      # Script deployment tool
+│   └── scripts/workflows/                     # Windmill workflow step scripts
+│       ├── input_validation.ts
+│       ├── data_normalization.ts
+│       ├── provider_scraping.ts
+│       ├── ai_analysis.ts
+│       ├── decision.ts
+│       └── execution.ts
 ├── automation/
 │   ├── scripts/provider-scraper.ts            # Playwright scraping simulation
 │   └── tests/                                 # E2E tests
 ├── database/
+│   ├── Dockerfile                             # Custom PostgreSQL image
+│   ├── init/                                  # DB initialization scripts
+│   │   └── 000_create_windmill_db.sh          # Creates Windmill database
 │   └── migrations/                            # PostgreSQL schema & seed data
 ├── docker-compose.yml
 └── .env.example
@@ -161,11 +212,14 @@ curl -X POST http://localhost:5000/api/workflows/{id}/approve \
 
 ## Configuration
 
-| Variable               | Description                    | Default              |
-|------------------------|--------------------------------|----------------------|
-| `ConnectionStrings__DefaultConnection` | PostgreSQL connection   | In-memory DB         |
-| `OpenAI__ApiKey`       | OpenAI API key for real AI     | Mock analysis used   |
-| `WINDMILL_URL`         | Windmill.dev base URL          | Mock orchestrator    |
+| Variable               | Description                          | Default                    |
+|------------------------|--------------------------------------|----------------------------|
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection      | In-memory DB               |
+| `OpenAI__ApiKey`       | OpenAI API key for real AI           | Mock analysis used         |
+| `WINDMILL_URL`         | Windmill server URL                  | `http://localhost:8000`    |
+| `WINDMILL_TOKEN`       | Windmill API token                   | (required for Windmill mode) |
+| `WINDMILL_WORKSPACE`   | Windmill workspace name              | `ai`                       |
+| `WINDMILL_DB`          | Windmill database name               | `windmill`                 |
 
 Without an OpenAI key, the AI analysis runs a deterministic mock that compares prices and recommends switching if savings exceed 10%.
 
@@ -196,6 +250,8 @@ cd frontend && npm test
 
 - **Clean Architecture**: Domain layer has zero dependencies; infrastructure details are abstracted behind interfaces
 - **MediatR CQRS**: Commands and queries separated for clarity and testability
+- **Dual execution modes**: Choose between .NET in-process or Windmill remote execution per workflow
+- **Graceful fallback**: WindmillOrchestrator falls back to local .NET execution if Windmill is unreachable or a script is missing
 - **Fire-and-forget orchestration**: Workflows run asynchronously; clients poll for status
 - **Human-in-the-loop**: Workflow pauses at approval gate, resumes on user action
 - **Graceful AI fallback**: Works without OpenAI key using deterministic comparison logic
