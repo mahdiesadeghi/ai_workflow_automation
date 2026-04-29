@@ -3,21 +3,22 @@
 
 ```mermaid
 flowchart TD
-    A["📥 Contract Input"] --> B["✅ Validation & Normalization"]
-    B --> C["🔍 Scrape Competitor Offers"]
-    C --> D["🤖 AI Analysis\n(Semantic Kernel + OpenAI)"]
-    D --> E["📊 Decision:\nKeep or Switch?"]
+    A["📥 Contract Input"] --> B["1️⃣ Input Validation"]
+    B --> C["2️⃣ Data Normalization"]
+    C --> D["3️⃣ Scrape Competitor Offers"]
+    D --> E["4️⃣ AI Analysis\n(Semantic Kernel + OpenAI)"]
+    E --> F["5️⃣ Decision:\nKeep or Switch?"]
     
-    E --> F["⏸️ WORKFLOW PAUSES"]
+    F --> G["6️⃣ ⏸️ WORKFLOW PAUSES"]
     
-    F --> G{"👤 Human Reviews\nAI Recommendation"}
+    G --> H{"👤 Human Reviews\nAI Recommendation"}
     
-    G -->|"✅ Approve"| H["⚡ Execute Switch"]
-    G -->|"❌ Reject"| I["🛑 Workflow Ends"]
+    H -->|"✅ Approve"| I["7️⃣ Execute Switch"]
+    H -->|"❌ Reject"| J["🛑 Workflow Ends"]
     
-    H --> J["✅ Done"]
+    I --> K["✅ Done"]
 
-    style F fill:#FF6B35,stroke:#333,color:#fff,font-weight:bold
-    style G fill:#4ECDC4,stroke:#333,color:#fff,font-weight:bold
-    style D fill:#7B68EE,stroke:#333,color:#fff
+    style G fill:#FF6B35,stroke:#333,color:#fff,font-weight:bold
+    style H fill:#4ECDC4,stroke:#333,color:#fff,font-weight:bold
+    style E fill:#7B68EE,stroke:#333,color:#fff
 ```
